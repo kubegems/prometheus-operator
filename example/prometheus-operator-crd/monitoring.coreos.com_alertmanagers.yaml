@@ -1848,6 +1848,35 @@ spec:
                   Use case is e.g. spanning an Alertmanager cluster across Kubernetes
                   clusters with a single replica in each.
                 type: boolean
+              globalAlertmanagerConfig:
+                description: GlobalAlertmanagerConfig used to set the global alertmanager
+                  config.
+                properties:
+                  global:
+                    description: 'Global specify the global alertmanager config, current
+                      only support resolve_timeout. More info: https://prometheus.io/docs/alerting/latest/configuration'
+                    properties:
+                      resolve_timeout:
+                        description: ResolveTimeout is the default value used by alertmanager
+                          if the alert does not include EndsAt, after this time passes
+                          it can declare the alert as resolved if it has not been
+                          updated. This has no impact on alerts from Prometheus, as
+                          they always include EndsAt.
+                        type: string
+                    type: object
+                  name:
+                    description: Name specify the gloal AlertmanagerConfig name which
+                      is in the same namespace with alertmanager.
+                    type: string
+                  templates:
+                    description: Templates specify the file paths which custom notification
+                      template definitions are read.
+                    items:
+                      type: string
+                    type: array
+                required:
+                - name
+                type: object
               image:
                 description: Image if specified has precedence over baseImage, tag
                   and sha combinations. Specifying the version is still necessary

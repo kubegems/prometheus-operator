@@ -29,6 +29,7 @@ import (
 	monitoringv1alpha1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 	"github.com/prometheus-operator/prometheus-operator/pkg/assets"
 	"github.com/prometheus/alertmanager/config"
+	"github.com/prometheus/common/model"
 	"gopkg.in/yaml.v2"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -72,9 +73,25 @@ func newConfigGenerator(logger log.Logger, store *assets.Store) *configGenerator
 
 func (cg *configGenerator) generateConfig(
 	ctx context.Context,
+	am *monitoringv1.Alertmanager,
 	baseConfig alertmanagerConfig,
 	amConfigs map[string]*monitoringv1alpha1.AlertmanagerConfig,
 ) ([]byte, error) {
+	if am.Spec.GlobalAlertmanagerConfig == nil {
+		am.Spec.GlobalAlertmanagerConfig = &monitoringv1.GlobalAlertmanagerConfig{}
+	}
+	if am.Spec.GlobalAlertmanagerConfig.Global.ResolveTimeout != "" {
+		if baseConfig.Global == nil {
+			baseConfig.Global = &globalConfig{}
+		}
+		dur, err := model.ParseDuration(am.Spec.GlobalAlertmanagerConfig.Global.ResolveTimeout)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Alertmanager %s", am.Name)
+		}
+		baseConfig.Global.ResolveTimeout = &dur
+	}
+	baseConfig.Templates = am.Spec.GlobalAlertmanagerConfig.Templates
+
 	// amConfigIdentifiers is a sorted slice of keys from
 	// amConfigs map, used to always generate the config in the
 	// same order.
@@ -103,7 +120,11 @@ func (cg *configGenerator) generateConfig(
 			continue
 		}
 
-		subRoutes = append(subRoutes, convertRoute(amConfigs[amConfigIdentifier].Spec.Route, crKey, true))
+		isGlobal := false
+		if crKey.Namespace == am.Namespace && crKey.Name == am.Spec.GlobalAlertmanagerConfig.Name {
+			isGlobal = true
+		}
+		subRoutes = append(subRoutes, convertRoute(amConfigs[amConfigIdentifier].Spec.Route, crKey, true, isGlobal))
 
 		for _, receiver := range amConfigs[amConfigIdentifier].Spec.Receivers {
 			receivers, err := cg.convertReceiver(ctx, &receiver, crKey)
@@ -123,7 +144,7 @@ func (cg *configGenerator) generateConfig(
 	return yaml.Marshal(baseConfig)
 }
 
-func convertRoute(in *monitoringv1alpha1.Route, crKey types.NamespacedName, firstLevelRoute bool) *route {
+func convertRoute(in *monitoringv1alpha1.Route, crKey types.NamespacedName, firstLevelRoute bool, isGlobal bool) *route {
 	// Enforce "continue" to be true for the top-level route.
 	cont := in.Continue
 	if firstLevelRoute {
@@ -140,7 +161,7 @@ func convertRoute(in *monitoringv1alpha1.Route, crKey types.NamespacedName, firs
 			match[matcher.Name] = matcher.Value
 		}
 	}
-	if firstLevelRoute {
+	if firstLevelRoute && !isGlobal {
 		match["namespace"] = crKey.Namespace
 		delete(matchRE, "namespace")
 	}
@@ -165,7 +186,7 @@ func convertRoute(in *monitoringv1alpha1.Route, crKey types.NamespacedName, firs
 			panic(err)
 		}
 		for i := range children {
-			routes[i] = convertRoute(&children[i], crKey, false)
+			routes[i] = convertRoute(&children[i], crKey, false, isGlobal)
 		}
 	}
 

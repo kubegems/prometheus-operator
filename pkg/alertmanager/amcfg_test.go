@@ -29,6 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 
+	v1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1"
 	monitoringv1alpha1 "github.com/prometheus-operator/prometheus-operator/pkg/apis/monitoring/v1alpha1"
 )
 
@@ -635,7 +636,13 @@ templates: []
 		t.Run(tc.name, func(t *testing.T) {
 			store := assets.NewStore(tc.kclient.CoreV1(), tc.kclient.CoreV1())
 			cg := newConfigGenerator(nil, store)
-			cfgBytes, err := cg.generateConfig(ctx, tc.baseConfig, tc.amConfigs)
+			am := &v1.Alertmanager{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "myam",
+					Namespace: "mynamespace",
+				},
+			}
+			cfgBytes, err := cg.generateConfig(ctx, am, tc.baseConfig, tc.amConfigs)
 			if err != nil {
 				t.Fatal(err)
 			}

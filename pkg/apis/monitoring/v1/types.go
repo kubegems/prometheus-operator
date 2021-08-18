@@ -1548,6 +1548,25 @@ type AlertmanagerSpec struct {
 	// Namespaces to be selected for AlertmanagerConfig discovery. If nil, only
 	// check own namespace.
 	AlertmanagerConfigNamespaceSelector *metav1.LabelSelector `json:"alertmanagerConfigNamespaceSelector,omitempty"`
+	// GlobalAlertmanagerConfig used to set the global alertmanager config.
+	GlobalAlertmanagerConfig *GlobalAlertmanagerConfig `json:"globalAlertmanagerConfig,omitempty"`
+}
+
+type GlobalAlertmanagerConfig struct {
+	// Name specify the gloal AlertmanagerConfig name which is in the same namespace with alertmanager.
+	Name string `json:"name"`
+	// Global specify the global alertmanager config, current only support resolve_timeout.
+	// More info: https://prometheus.io/docs/alerting/latest/configuration
+	Global GlobalConfig `json:"global,omitempty"`
+	// Templates specify the file paths which custom notification template definitions are read.
+	Templates []string `json:"templates,omitempty"`
+}
+
+type GlobalConfig struct {
+	// ResolveTimeout is the default value used by alertmanager if the alert does
+	// not include EndsAt, after this time passes it can declare the alert as resolved if it has not been updated.
+	// This has no impact on alerts from Prometheus, as they always include EndsAt.
+	ResolveTimeout string `yaml:"resolve_timeout,omitempty" json:"resolve_timeout,omitempty"`
 }
 
 // AlertmanagerList is a list of Alertmanagers.
