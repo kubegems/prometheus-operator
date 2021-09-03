@@ -9,9 +9,9 @@ else
 endif
 
 GO_PKG=github.com/prometheus-operator/prometheus-operator
-IMAGE_OPERATOR?=quay.io/prometheus-operator/prometheus-operator
-IMAGE_RELOADER?=quay.io/prometheus-operator/prometheus-config-reloader
-TAG?=$(shell git rev-parse --short HEAD)
+IMAGE_OPERATOR?=harbor.cloudminds.com/library/prometheus-operator
+IMAGE_RELOADER?=harbor.cloudminds.com/library/prometheus-config-reloader
+TAG?=$(shell git describe --tags 2>/dev/null)
 VERSION?=$(shell cat VERSION | tr -d " \t\n\r")
 
 TYPES_V1_TARGET := pkg/apis/monitoring/v1/types.go
