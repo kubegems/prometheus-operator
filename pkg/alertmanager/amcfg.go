@@ -110,9 +110,14 @@ func (cg *configGenerator) generateConfig(
 			Namespace: amConfigs[amConfigIdentifier].Namespace,
 		}
 
+		isGlobal := false
+		if crKey.Namespace == am.Namespace && crKey.Name == am.Spec.GlobalAlertmanagerConfig.Name {
+			isGlobal = true
+		}
+
 		// Add inhibitRules to baseConfig.InhibitRules.
 		for _, inhibitRule := range amConfigs[amConfigIdentifier].Spec.InhibitRules {
-			baseConfig.InhibitRules = append(baseConfig.InhibitRules, convertInhibitRule(&inhibitRule, crKey))
+			baseConfig.InhibitRules = append(baseConfig.InhibitRules, convertInhibitRule(&inhibitRule, crKey, isGlobal))
 		}
 
 		// Skip early if there's no route definition.
@@ -120,10 +125,6 @@ func (cg *configGenerator) generateConfig(
 			continue
 		}
 
-		isGlobal := false
-		if crKey.Namespace == am.Namespace && crKey.Name == am.Spec.GlobalAlertmanagerConfig.Name {
-			isGlobal = true
-		}
 		subRoutes = append(subRoutes, convertRoute(amConfigs[amConfigIdentifier].Spec.Route, crKey, true, isGlobal))
 
 		for _, receiver := range amConfigs[amConfigIdentifier].Spec.Receivers {
@@ -752,7 +753,7 @@ func (cg *configGenerator) convertPushoverConfig(ctx context.Context, in monitor
 	return out, nil
 }
 
-func convertInhibitRule(in *monitoringv1alpha1.InhibitRule, crKey types.NamespacedName) *inhibitRule {
+func convertInhibitRule(in *monitoringv1alpha1.InhibitRule, crKey types.NamespacedName, isGlobal bool) *inhibitRule {
 	sourceMatch := map[string]string{}
 	sourceMatchRE := map[string]string{}
 	for _, sm := range in.SourceMatch {
@@ -763,8 +764,10 @@ func convertInhibitRule(in *monitoringv1alpha1.InhibitRule, crKey types.Namespac
 		}
 	}
 
-	sourceMatch["namespace"] = crKey.Namespace
-	delete(sourceMatchRE, "namespace")
+	if !isGlobal {
+		sourceMatch["namespace"] = crKey.Namespace
+		delete(sourceMatchRE, "namespace")
+	}
 
 	// Set to nil if empty so that it doesn't show up in resulting yaml
 	if len(sourceMatchRE) == 0 {
@@ -781,8 +784,10 @@ func convertInhibitRule(in *monitoringv1alpha1.InhibitRule, crKey types.Namespac
 		}
 	}
 
-	targetMatch["namespace"] = crKey.Namespace
-	delete(targetMatchRE, "namespace")
+	if !isGlobal {
+		targetMatch["namespace"] = crKey.Namespace
+		delete(targetMatchRE, "namespace")
+	}
 
 	// Set to nil if empty so that it doesn't show up in resulting yaml
 	if len(targetMatchRE) == 0 {
